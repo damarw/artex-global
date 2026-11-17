@@ -1,0 +1,48 @@
+title: SSRF — Private or Metadata Address in a URL Parameter
+id: c3ba171f-a057-4d80-9c9c-f0b156911d3c
+status: experimental
+description: |
+    A request whose parameter carries an internal, loopback, link-local or cloud-metadata address.
+    This is the target-side symptom of server-side request forgery: the attacker asks the application
+    to fetch something only the server can reach. During our audits the useful variant was a "fetch a
+    document/import from URL" feature; blind cases were confirmed with an out-of-band callback instead
+    of a response body. Pair this rule with your egress logs — the request that leaves the server is the
+    real proof.
+references:
+    - https://github.com/jiwoochris/artex-global/blob/main/docs/defense-en.md
+author: damarw (derived from authorized pentest findings)
+date: 2026-11-17
+tags:
+    - attack.initial-access
+    - attack.t1190
+logsource:
+    product: webserver
+detection:
+    selection_params:
+        cs-uri-query|contains:
+            - '=127.0.0.1'
+            - '=localhost'
+            - '=0.0.0.0'
+            - '=169.254.169.254'
+            - '=metadata.google.internal'
+            - '=10.'
+            - '=192.168.'
+            - '=172.16.'
+            - '=172.17.'
+            - '=172.18.'
+            - '=172.19.'
+            - '=172.2'
+            - '=172.30.'
+            - '=172.31.'
+            - 'file://'
+            - 'gopher://'
+            - 'dict://'
+            - '=http%3A%2F%2F127.0.0.1'
+    filter_public:
+        cs-uri-query|contains:
+            - '=http://example.com'
+    condition: selection_params and not filter_public
+falsepositives:
+    - Admin tooling that legitimately fetches from an internal host (allowlist the source).
+    - Health checks that pass a loopback URL.
+level: high

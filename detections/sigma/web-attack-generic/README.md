@@ -23,6 +23,9 @@ keep the `condition` semantics of the correlation rules — a single hit is nois
 | [`web_sql_injection_strings.yml`](web_sql_injection_strings.yml) | high | SQL Injection / NoSQL Injection Payload Strings in Request |
 | [`web_xss_payload_strings.yml`](web_xss_payload_strings.yml) | medium | XSS / HTML Injection Payload Strings in Request |
 | [`web_sensitive_file_probe.yml`](web_sensitive_file_probe.yml) | medium | Sensitive File / Backup / Repository Metadata Probe |
+| [`web_ssrf_inbound_url_parameters.yml`](web_ssrf_inbound_url_parameters.yml) | high | SSRF — private/metadata address in a URL parameter |
+| [`web_xxe_xml_payload.yml`](web_xxe_xml_payload.yml) | high | XXE — DOCTYPE / external entity in submitted XML |
+| [`web_state_change_without_csrf_controls.yml`](web_state_change_without_csrf_controls.yml) | low | State-changing request without CSRF token or same-origin Referer |
 | [`web_document_generator_captcha_bypass.yml`](web_document_generator_captcha_bypass.yml) | high | Document Generator Hit Without Captcha Session (Captcha Bypass Pattern) |
 | [`web_admin_login_bruteforce.yml`](web_admin_login_bruteforce.yml) | high | Unthrottled Administrative Login Brute Force |
 | [`web_upload_then_html_access.yml`](web_upload_then_html_access.yml) | high | Upload Followed by Direct Access to Executable Content (Polyglot Upload) |

@@ -94,10 +94,35 @@ RUN set -eux; \
       msfconsole -v; \
     else echo "Metasploit dilewati (INSTALL_MSF=0)"; fi
 
+# --- commix (command injection) + ysoserial (deserialisasi) --------------------
+ARG COMMIX_TAG=4.1
+ARG YSOSERIAL_VERSION=0.0.6
+RUN set -eux; \
+    # commix: python, tanpa dependensi berat
+    curl -fsSL --retry 3 -o /tmp/commix.tar.gz "https://github.com/commixproject/commix/archive/refs/tags/v${COMMIX_TAG}.tar.gz"; \
+    tar -xzf /tmp/commix.tar.gz -C /opt; \
+    mv "/opt/commix-${COMMIX_TAG}" /opt/commix; \
+    printf '#!/bin/sh\nexec python3 /opt/commix/commix.py "$@"\n' > /usr/local/bin/commix; \
+    chmod +x /usr/local/bin/commix /opt/commix/commix.py; rm -f /tmp/commix.tar.gz; \
+    # ysoserial: butuh JRE headless (~120MB) — dipakai untuk gadget deserialisasi Java
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends default-jre-headless; \
+    rm -rf /var/lib/apt/lists/*; \
+    curl -fsSL --retry 3 -o /opt/ysoserial.jar \
+      "https://github.com/frohoff/ysoserial/releases/download/v${YSOSERIAL_VERSION}/ysoserial-all.jar"; \
+    printf '#!/bin/sh\nexec java -jar /opt/ysoserial.jar "$@"\n' > /usr/local/bin/ysoserial; \
+    chmod +x /usr/local/bin/ysoserial; \
+    printf '#!/bin/sh\njava -jar /opt/ysoserial.jar 2>&1 | head -40\n' > /usr/local/bin/ysoserial-info; \
+    chmod +x /usr/local/bin/ysoserial-info; \
+    commix --version | head -2; java -version 2>&1 | head -1
+
 # --- gerbang mode deep: kill switch + budget percobaan -------------------------
 COPY deeptool /usr/local/bin/deeptool
-RUN chmod 0755 /usr/local/bin/deeptool && ln -sf /usr/local/bin/deeptool /usr/local/bin/deep && \
-    deeptool status >/dev/null && echo "deeptool siap"
+COPY pentest /usr/local/bin/pentest
+RUN chmod 0755 /usr/local/bin/deeptool /usr/local/bin/pentest && \
+    ln -sf /usr/local/bin/deeptool /usr/local/bin/deep && \
+    deeptool status >/dev/null && pentest info >/dev/null 2>&1 || true; \
+    echo "deeptool + pentest siap"
 
 # Template nuclei di-bake supaya scan pertama tidak menunggu unduhan (~13 ribu template).
 # Diambil lewat git clone karena rilis nuclei-templates tidak menyediakan arsip siap unduh.

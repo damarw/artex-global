@@ -1,0 +1,37 @@
+title: XXE — DOCTYPE / External Entity in Submitted XML
+id: 3b0b9e18-9ffd-45b0-86ad-0372e4a281cb
+status: experimental
+description: |
+    XML submitted with a DOCTYPE declaration or an entity reference. Legitimate business XML rarely
+    carries `DOCTYPE ... SYSTEM`, and almost never references `file://` or an external host. Detection is
+    high-confidence on the payload; confirmation still needs either file content in the response or an
+    out-of-band callback (interactsh), because most modern parsers disable entity resolution silently.
+references:
+    - https://github.com/jiwoochris/artex-global/blob/main/docs/defense-en.md
+author: damarw (derived from authorized pentest findings)
+date: 2026-11-17
+tags:
+    - attack.initial-access
+    - attack.t1190
+logsource:
+    product: webserver
+detection:
+    selection_body:
+        cs-body|contains:
+            - '<!DOCTYPE'
+            - '<!ENTITY'
+            - 'SYSTEM "file://'
+            - 'SYSTEM "http'
+            - 'SYSTEM "php://'
+            - '&xxe;'
+            - '&file;'
+    selection_type:
+        cs-method: POST
+        cs-content-type|contains: 'xml'
+    filter_soap:
+        cs-uri-stem|contains: '/ws/'
+    condition: (selection_body or selection_type) and not filter_soap
+falsepositives:
+    - SOAP clients and enterprise integrations that send a legitimate DOCTYPE.
+    - Legacy XML importers with a fixed schema header.
+level: high

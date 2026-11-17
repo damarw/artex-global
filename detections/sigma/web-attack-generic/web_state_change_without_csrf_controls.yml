@@ -1,0 +1,43 @@
+title: State-Changing Request Without CSRF Token or Origin — Cross-Site Request Forgery Pattern
+id: 1448c667-8238-4d16-bed8-bc00fd6b2522
+status: experimental
+description: |
+    A state-changing POST/PUT/DELETE that arrives without a CSRF token parameter, without an Origin
+    header matching the site, and with a foreign Referer. This is the pattern an attacker's page
+    produces when it submits a form on behalf of a logged-in victim. Note the two structural facts our
+    audits found: applications using `Authorization:` headers instead of cookies are *not* vulnerable
+    (no ambient credential), and one-time tokens per form are effective. Use this rule where sessions
+    ride on cookies.
+references:
+    - https://github.com/jiwoochris/artex-global/blob/main/docs/defense-en.md
+author: damarw (derived from authorized pentest findings)
+date: 2026-11-17
+tags:
+    - attack.initial-access
+    - attack.t1190
+    - attack.t1566
+logsource:
+    product: webserver
+detection:
+    selection:
+        cs-method:
+            - POST
+            - PUT
+            - DELETE
+        sc-status:
+            - 200
+            - 201
+            - 302
+    filter_token:
+        cs-uri-query|contains:
+            - '_token='
+            - 'csrf'
+            - 'authenticity_token'
+    filter_same_origin:
+        cs-referer|contains: 'wonosobokab.go.id'
+    condition: selection and not filter_token and not filter_same_origin
+falsepositives:
+    - API clients that legitimately post without Referer (allowlist by path or user-agent).
+    - Mobile apps whose HTTP client omits Referer.
+    - Endpoints that authenticate with a bearer token instead of a cookie — exclude them by path.
+level: low
