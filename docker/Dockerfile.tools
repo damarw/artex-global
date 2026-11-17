@@ -30,9 +30,10 @@ RUN set -eux; \
       *) echo "arsitektur tidak didukung: $arch" >&2; exit 1 ;; esac; \
     get() { curl -fsSL --retry 3 -o /tmp/x.zip "$1"; unzip -oq /tmp/x.zip -d /usr/local/bin "$2"; chmod +x "/usr/local/bin/$2"; rm -f /tmp/x.zip; }; \
     get "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_${a}.zip" nuclei; \
-    get "https://github.com/ffuf/ffuf/releases/download/v${FFUF_VERSION}/ffuf_${FFUF_VERSION}_linux_${a}.zip" ffuf; \
     get "https://github.com/projectdiscovery/httpx/releases/download/v${HTTPX_VERSION}/httpx_${HTTPX_VERSION}_linux_${a}.zip" httpx; \
     get "https://github.com/projectdiscovery/interactsh/releases/download/v${INTERACTSH_VERSION}/interactsh-client_${INTERACTSH_VERSION}_linux_${a}.zip" interactsh-client; \
+    curl -fsSL --retry 3 -o /tmp/ffuf.tar.gz "https://github.com/ffuf/ffuf/releases/download/v${FFUF_VERSION}/ffuf_${FFUF_VERSION}_linux_${a}.tar.gz"; \
+    tar -xzf /tmp/ffuf.tar.gz -C /usr/local/bin ffuf; chmod +x /usr/local/bin/ffuf; rm -f /tmp/ffuf.tar.gz; \
     nuclei -version; ffuf -V; httpx -version
 
 # --- sqlmap ------------------------------------------------------------------
@@ -54,7 +55,13 @@ RUN set -eux; \
     chmod +x /usr/local/bin/jwt_tool; \
     jwt_tool -h >/dev/null
 
-# Template nuclei di-bake supaya scan pertama tidak menunggu unduhan (~10 ribu template).
-RUN nuclei -update-templates -silent || true
+# Template nuclei di-bake supaya scan pertama tidak menunggu unduhan (~13 ribu template).
+# Diambil lewat git clone karena rilis nuclei-templates tidak menyediakan arsip siap unduh.
+# Kalau jaringan build diblokir, langkah ini dilewati dan nuclei mengunduh saat pemakaian.
+RUN set -eux; \
+    rm -rf /root/nuclei-templates; \
+    (git clone --depth 1 --single-branch \
+       https://github.com/projectdiscovery/nuclei-templates.git /root/nuclei-templates \
+       && rm -rf /root/nuclei-templates/.git) || echo "templates dilewati: jaringan build menolak git clone"
 
 ENV ARTEX_TOOLS_LAYER=1
