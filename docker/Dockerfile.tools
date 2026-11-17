@@ -119,7 +119,8 @@ RUN set -eux; \
 # --- gerbang mode deep: kill switch + budget percobaan -------------------------
 COPY deeptool /usr/local/bin/deeptool
 COPY pentest /usr/local/bin/pentest
-RUN chmod 0755 /usr/local/bin/deeptool /usr/local/bin/pentest && \
+COPY pentest-web /usr/local/bin/pentest-web
+RUN chmod 0755 /usr/local/bin/deeptool /usr/local/bin/pentest /usr/local/bin/pentest-web && \
     ln -sf /usr/local/bin/deeptool /usr/local/bin/deep && \
     deeptool status >/dev/null && pentest info >/dev/null 2>&1 || true; \
     echo "deeptool + pentest siap"

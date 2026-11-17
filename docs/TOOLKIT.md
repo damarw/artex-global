@@ -151,6 +151,29 @@ Added by `docker/Dockerfile.tools`:
 Build: `docker build -f docker/Dockerfile.tools -t artex-global-tools:deep .` (5.02 GB with MSF;
 `--build-arg INSTALL_MSF=0` skips it and drops most of the weight).
 
+
+## Tools page
+
+`pentest web --port 8791` (mapped to `127.0.0.1:8791` by the compose override) serves an inventory
+page: every tool with installed version, upstream latest, license, and a status column
+(`terbaru` / `versi lebih baru: X` / `tidak ada`).
+
+Buttons:
+
+- **Cek versi + pembaruan** — refreshes installed versions and queries GitHub `releases/latest`
+  per tool (results cached 60 s; unauthenticated API, 60 req/h).
+- **Update template nuclei** — runs `nuclei -update-templates`.
+- **Update Exploit-DB** — runs `git -C /opt/exploitdb pull --ff-only`.
+
+Updates to `nuclei-templates` and `/opt/exploitdb` persist across restarts through the named volumes
+`artex-tpl` / `artex-edb` (initialised from the image on first use). Engine binaries are baked at
+build time, so the page shows the rebuild command instead of a button that quietly does nothing —
+raise `ARG *_VERSION` in `docker/Dockerfile.tools`, then rebuild.
+
+Verified inside the built image (`pentest web` + `curl /api/tools?upstream=1`): nuclei 3.11.1,
+httpx 1.12.0, katana 1.8.0, interactsh 1.4.1, ffuf 2.3.0, dalfox 3.3.0, sqlmap 1.10, commix 4.1,
+msf 6.5.11-dev, ysoserial 0.0.6, Exploit-DB mirror 47 182 entries, jwt_tool, nmap 7.93.
+
 ## Detection rules
 
 `detections/sigma/web-attack-generic/` holds 11 Sigma rules for attack *patterns* rather than tool

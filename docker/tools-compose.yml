@@ -20,6 +20,13 @@ services:
     environment:
       DEEP_DIR: /app/data/deep
       DEEP_TOKEN: ${DEEP_TOKEN:-}
+    ports:
+      # halaman inventaris alat (versi + tombol update), hanya dari host
+      - "127.0.0.1:8791:8791"
+    volumes:
+      # volume bernama: isi awal diambil dari image, lalu bertahan antar restart
+      - artex-tpl:/root/nuclei-templates
+      - artex-edb:/opt/exploitdb
 
   deepctl:
     image: python:3.12-slim
@@ -36,3 +43,7 @@ services:
       # hanya dari host; akses dari luar lewat SSH tunnel
       - "127.0.0.1:8790:8790"
     restart: unless-stopped
+
+volumes:
+  artex-tpl:
+  artex-edb:
