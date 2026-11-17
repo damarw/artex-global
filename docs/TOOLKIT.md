@@ -96,6 +96,61 @@ formats) returns a SARIF 2.1.0 log:
 Verified with `go test ./report/ -run SARIF` (shape, level mapping, rule de-duplication, ordering)
 and `go build ./... && go vet ./report/ ./server/` on Go 1.26.3.
 
+## Deep mode: `deeptool` + `deepctl`
+
+Exploitation above detection is gated by `deeptool` (`docker/deeptool`, installed at
+`/usr/local/bin/deeptool`). It is **off by default**, expiring, budgeted, recorded, and stoppable.
+
+```bash
+deeptool enable --level 2 --ttl 30m --max-attempts 20 --per-key 2
+deeptool run --key idor-001 -- curl -s -o /tmp/p1.json -w '%{http_code}' 'https://target/x?id=1'
+deeptool record -- nmap -sV target       # L0/L1, recorded, no enable needed
+deeptool log --tail 20                   # audit trail
+deeptool stop                            # kill switch (sets STOP file)
+deeptool serve --port 8790               # browser buttons
+```
+
+Levels: **L2** proof-of-read, **L3** controlled impact on a synthetic record, **L4** post-exploitation
+(lab only). Every invocation — executed or refused, with the reason — is appended to
+`$DEEP_DIR/audit.jsonl` with timestamp, level, hypothesis key, command, exit code and duration.
+
+Client policy, enforced by the blocklist:
+
+| Allowed | Blocked |
+| --- | --- |
+| account creation | DROP / TRUNCATE / unbounded DELETE or UPDATE |
+| RCE, command execution, shell (prove then close) | encryption (`openssl enc`, `gpg --symmetric`), wiping (`shred`, `wipe`) |
+| one record read (L2), one synthetic write (L3) | file deletion, account deletion, service stop |
+| ordinary recon and detection | persistence (cron, systemd, ssh keys, web shells) |
+| creating test accounts | mass collection (`{1..n}`, `seq` loops, parallel bulk, masscan, wfuzz), brute force |
+
+`deepctl` is the button panel (compose service, `127.0.0.1:8790`): **Aktifkan L2/L3/L4**, **Matikan**,
+**HENTIKAN SEKARANG**. STOP sets the STOP file, so every later L2+ call is refused immediately —
+including from a task already running. A token (`DEEP_TOKEN`) is required; the panel prints it on
+start if unset.
+
+## Tools
+
+Base image (upstream) has `nmap`, `whois`, `dig`, `netcat`, `telnet`, Playwright/Chromium.
+
+Added by `docker/Dockerfile.tools`:
+
+| Tool | Purpose | Verified in image |
+| --- | --- | --- |
+| `nuclei` 3.11.1 + 14 225 templates | CVE / misconfiguration templates | `nuclei -version` |
+| `sqlmap` 1.10 | prove SQLi (boolean, time-based, union) | `sqlmap --version` |
+| `ffuf` 2.3.0 | path / parameter discovery | `ffuf -V` |
+| `httpx` 1.12.0 | fast HTTP probing, inventory | `httpx -version` |
+| `interactsh-client` 1.4.1 | out-of-band proof (SSRF/XXE/RCE blind) | banner |
+| `jwt_tool` | JWT forgery/analysis (alg confusion, HS256 secret) | `jwt_tool -h` |
+| `searchsploit` (Exploit-DB mirror) | offline public-PoC lookup per product/version | `searchsploit --cve 2021-44228` → 3 hits |
+| `katana` 1.8.0 | JS-aware crawler | `katana -version` |
+| `dalfox` 3.3.0 | XSS scanning + DOM verification | `dalfox --version` |
+| Metasploit 6.5.11 | module-driven check/exploit, driven via `msfconsole -r` | `msfconsole -v` |
+
+Build: `docker build -f docker/Dockerfile.tools -t artex-global-tools:deep .` (5.02 GB with MSF;
+`--build-arg INSTALL_MSF=0` skips it and drops most of the weight).
+
 ## Detection rules
 
 `detections/sigma/web-attack-generic/` holds 11 Sigma rules for attack *patterns* rather than tool

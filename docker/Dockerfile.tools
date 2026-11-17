@@ -55,6 +55,50 @@ RUN set -eux; \
     chmod +x /usr/local/bin/jwt_tool; \
     jwt_tool -h >/dev/null
 
+# --- searchsploit (exploitdb) -------------------------------------------------
+# PoC publik per produk/versi, offline. Dipakai skill cve-chain sebelum menyimpulkan "tidak ada PoC".
+ARG EXPLOITDB_REPO=https://gitlab.com/exploit-database/exploitdb.git
+RUN set -eux; \
+    git clone --depth 1 "$EXPLOITDB_REPO" /opt/exploitdb || \
+      git clone --depth 1 https://github.com/offensive-security/exploitdb.git /opt/exploitdb; \
+    ln -sf /opt/exploitdb/searchsploit /usr/local/bin/searchsploit; \
+    searchsploit --version 2>/dev/null || searchsploit -h | head -2
+
+# --- katana (crawler JS-aware) + dalfox (XSS) ---------------------------------
+ARG KATANA_VERSION=1.8.0
+ARG DALFOX_VERSION=3.3.0
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in amd64) a=amd64; d=x86_64 ;; arm64) a=arm64; d=aarch64 ;; \
+      *) echo "arsitektur tidak didukung: $arch" >&2; exit 1 ;; esac; \
+    curl -fsSL --retry 3 -o /tmp/k.zip "https://github.com/projectdiscovery/katana/releases/download/v${KATANA_VERSION}/katana_${KATANA_VERSION}_linux_${a}.zip"; \
+    unzip -oq /tmp/k.zip -d /usr/local/bin katana; chmod +x /usr/local/bin/katana; rm -f /tmp/k.zip; \
+    curl -fsSL --retry 3 -o /tmp/d.tgz "https://github.com/hahwul/dalfox/releases/download/v${DALFOX_VERSION}/dalfox-v${DALFOX_VERSION}-linux-${d}.tar.gz"; \
+    mkdir -p /tmp/dx && tar -xzf /tmp/d.tgz -C /tmp/dx; \
+    cp /tmp/dx/dalfox-v${DALFOX_VERSION}-linux-${d}/dalfox /usr/local/bin/dalfox; chmod +x /usr/local/bin/dalfox; \
+    rm -rf /tmp/d.tgz /tmp/dx; \
+    katana -version; dalfox --version
+
+# --- Metasploit Framework ------------------------------------------------------
+# Berat (~1 GB). Bisa dimatikan saat build: --build-arg INSTALL_MSF=0
+ARG INSTALL_MSF=1
+RUN set -eux; \
+    if [ "$INSTALL_MSF" = "1" ]; then \
+      curl -fsSL --retry 3 https://apt.metasploit.com/metasploit-framework.gpg.key \
+        | gpg --dearmor -o /usr/share/keyrings/metasploit.gpg; \
+      echo "deb [signed-by=/usr/share/keyrings/metasploit.gpg] https://apt.metasploit.com/ lucid main" \
+        > /etc/apt/sources.list.d/metasploit.list; \
+      apt-get update; \
+      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends metasploit-framework; \
+      rm -rf /var/lib/apt/lists/*; \
+      msfconsole -v; \
+    else echo "Metasploit dilewati (INSTALL_MSF=0)"; fi
+
+# --- gerbang mode deep: kill switch + budget percobaan -------------------------
+COPY deeptool /usr/local/bin/deeptool
+RUN chmod 0755 /usr/local/bin/deeptool && ln -sf /usr/local/bin/deeptool /usr/local/bin/deep && \
+    deeptool status >/dev/null && echo "deeptool siap"
+
 # Template nuclei di-bake supaya scan pertama tidak menunggu unduhan (~13 ribu template).
 # Diambil lewat git clone karena rilis nuclei-templates tidak menyediakan arsip siap unduh.
 # Kalau jaringan build diblokir, langkah ini dilewati dan nuclei mengunduh saat pemakaian.

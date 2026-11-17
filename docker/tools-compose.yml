@@ -1,16 +1,38 @@
-# Override compose: ARTEX + alat pentest tambahan.
+# Override compose: ARTEX + alat pentest tambahan + panel tombol deep mode.
 #
 # Pakai bersamaan dengan compose utama:
 #   docker compose -f docker-compose.yml -f docker/tools-compose.yml up -d --build
 #
-# Hanya service `artex` yang diganti (build dari Dockerfile.tools). postgres tetap dari
-# compose utama, jadi data dan volume tidak tersentuh.
+# `artex` diganti dengan image hasil build Dockerfile.tools (nuclei, sqlmap, ffuf, httpx,
+# interactsh, jwt_tool, searchsploit, katana, dalfox, Metasploit, deeptool).
+# `deepctl` adalah panel tombol terpisah: STOP / aktifkan L2-L4 / lihat log audit.
+# Keduanya berbagi direktori state yang sama, jadi tombol STOP benar-benar menghentikan agen.
 
 services:
   artex:
     build:
-      context: ..
-      dockerfile: docker/Dockerfile.tools
+      context: .
+      dockerfile: Dockerfile.tools
       args:
         ARTEX_TAG: ${ARTEX_TAG:-latest}
+        INSTALL_MSF: ${INSTALL_MSF:-1}
     image: artex-global-tools:${ARTEX_TAG:-latest}
+    environment:
+      DEEP_DIR: /app/data/deep
+      DEEP_TOKEN: ${DEEP_TOKEN:-}
+
+  deepctl:
+    image: python:3.12-slim
+    depends_on:
+      - artex
+    environment:
+      DEEP_DIR: /app/data/deep
+      DEEP_TOKEN: ${DEEP_TOKEN:-}
+    command: ["python", "/opt/deeptool", "serve", "--port", "8790"]
+    volumes:
+      - ./data/deep:/app/data/deep
+      - ./docker/deeptool:/opt/deeptool:ro
+    ports:
+      # hanya dari host; akses dari luar lewat SSH tunnel
+      - "127.0.0.1:8790:8790"
+    restart: unless-stopped
