@@ -1,0 +1,54 @@
+title: XSS / HTML Injection Payload Strings in Request
+id: 8f1c3d7e-2b64-4a9f-9e15-6d0c47ab91c3
+status: experimental
+description: |
+    Script-bearing payload markers in the URI, query or body — reflected and stored XSS attempts against
+    any surface. This is a symptom rule: it fires on the payload, not on execution. Pair it with a
+    response that reflects the payload unescaped (or with an upload followed by a direct fetch, which
+    `web_upload_then_html_access.yml` covers) before calling it a finding. During our audits the
+    interesting XSS cases were stored: a raw `x-html` sink in a DataTables row template and a polyglot
+    upload served as text/html from the portal origin.
+references:
+    - https://github.com/jiwoochris/artex-global/blob/main/docs/defense-en.md
+author: damarw (derived from authorized pentest findings)
+date: 2026-11-17
+tags:
+    - attack.initial-access
+    - attack.t1189
+    - attack.t1059.007
+logsource:
+    product: webserver
+detection:
+    selection:
+        cs-uri-query|contains:
+            - '<script'
+            - '%3Cscript'
+            - 'onerror='
+            - 'onload='
+            - 'onfocus='
+            - 'onmouseover='
+            - 'javascript:'
+            - 'document.cookie'
+            - 'document.domain'
+            - '<svg/onload'
+            - '<img src=x'
+            - '<iframe srcdoc'
+            - '"><script'
+            - "'-alert("
+            - '${alert('
+            - '{{constructor'
+        cs-uri-stem|contains:
+            - '<script'
+            - '%3Cscript'
+            - 'onerror='
+    filter_static:
+        cs-uri-stem|endswith:
+            - '.js'
+            - '.css'
+            - '.map'
+    condition: selection and not filter_static
+falsepositives:
+    - Rich-text editors and CMS previews that legitimately post HTML.
+    - Vulnerability scanners you run yourself — allowlist their source addresses.
+    - WAF test suites that replay known payload corpora.
+level: medium

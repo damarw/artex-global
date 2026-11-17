@@ -21,6 +21,7 @@ keep the `condition` semantics of the correlation rules — a single hit is nois
 | [`web_sequential_object_enumeration.yml`](web_sequential_object_enumeration.yml) | high | Sequential Object Identifier Enumeration (IDOR / Register Walking) |
 | [`web_path_traversal_probe.yml`](web_path_traversal_probe.yml) | high | Path Traversal / LFI Probing in URI or Query |
 | [`web_sql_injection_strings.yml`](web_sql_injection_strings.yml) | high | SQL Injection / NoSQL Injection Payload Strings in Request |
+| [`web_xss_payload_strings.yml`](web_xss_payload_strings.yml) | medium | XSS / HTML Injection Payload Strings in Request |
 | [`web_sensitive_file_probe.yml`](web_sensitive_file_probe.yml) | medium | Sensitive File / Backup / Repository Metadata Probe |
 | [`web_document_generator_captcha_bypass.yml`](web_document_generator_captcha_bypass.yml) | high | Document Generator Hit Without Captcha Session (Captcha Bypass Pattern) |
 | [`web_admin_login_bruteforce.yml`](web_admin_login_bruteforce.yml) | high | Unthrottled Administrative Login Brute Force |
