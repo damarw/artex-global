@@ -1,0 +1,16 @@
+# Override compose: ARTEX + alat pentest tambahan.
+#
+# Pakai bersamaan dengan compose utama:
+#   docker compose -f docker-compose.yml -f docker/tools-compose.yml up -d --build
+#
+# Hanya service `artex` yang diganti (build dari Dockerfile.tools). postgres tetap dari
+# compose utama, jadi data dan volume tidak tersentuh.
+
+services:
+  artex:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.tools
+      args:
+        ARTEX_TAG: ${ARTEX_TAG:-latest}
+    image: artex-global-tools:${ARTEX_TAG:-latest}

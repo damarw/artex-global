@@ -1,0 +1,60 @@
+# syntax=docker/dockerfile:1
+#
+# Lapisan alat tambahan di atas image ARTEX resmi.
+#
+# Kenapa lapisan terpisah, bukan mengubah Dockerfile utama:
+#   - Dockerfile utama hanya menyalin binary yang sudah dikompilasi CI. Menambah alat di sana
+#     berarti membangun ulang seluruh alur rilis setiap kali ada alat baru.
+#   - Di sini kita extend image rilis, jadi tetap bisa memakai tag versi (ARTEX_TAG) dan
+#     pembaruan upstream tidak bentrok.
+#
+# Pakai:
+#   docker compose -f docker-compose.yml -f docker/tools-compose.yml up -d --build
+#
+# Isi: pemindai CVE (nuclei), injeksi SQL (sqlmap), fuzz path (ffuf), probe HTTP (httpx),
+# out-of-band (interactsh), dan jwt_tool untuk kelas authentication-jwt.
+FROM ghcr.io/jiwoochris/artex-global:${ARTEX_TAG:-latest}
+
+ARG NUCLEI_VERSION=3.11.1
+ARG FFUF_VERSION=2.3.0
+ARG HTTPX_VERSION=1.12.0
+ARG INTERACTSH_VERSION=1.4.1
+ARG SQLMAP_TAG=1.10
+
+USER root
+
+# --- binary Go dari GitHub Releases (tanpa kompilasi) -------------------------
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in amd64) a=amd64 ;; arm64) a=arm64 ;; \
+      *) echo "arsitektur tidak didukung: $arch" >&2; exit 1 ;; esac; \
+    get() { curl -fsSL --retry 3 -o /tmp/x.zip "$1"; unzip -oq /tmp/x.zip -d /usr/local/bin "$2"; chmod +x "/usr/local/bin/$2"; rm -f /tmp/x.zip; }; \
+    get "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_${a}.zip" nuclei; \
+    get "https://github.com/ffuf/ffuf/releases/download/v${FFUF_VERSION}/ffuf_${FFUF_VERSION}_linux_${a}.zip" ffuf; \
+    get "https://github.com/projectdiscovery/httpx/releases/download/v${HTTPX_VERSION}/httpx_${HTTPX_VERSION}_linux_${a}.zip" httpx; \
+    get "https://github.com/projectdiscovery/interactsh/releases/download/v${INTERACTSH_VERSION}/interactsh-client_${INTERACTSH_VERSION}_linux_${a}.zip" interactsh-client; \
+    nuclei -version; ffuf -V; httpx -version
+
+# --- sqlmap ------------------------------------------------------------------
+RUN set -eux; \
+    curl -fsSL --retry 3 -o /tmp/sqlmap.tar.gz "https://github.com/sqlmapproject/sqlmap/archive/refs/tags/${SQLMAP_TAG}.tar.gz"; \
+    tar -xzf /tmp/sqlmap.tar.gz -C /opt; \
+    mv "/opt/sqlmap-${SQLMAP_TAG}" /opt/sqlmap; \
+    ln -sf /opt/sqlmap/sqlmap.py /usr/local/bin/sqlmap; \
+    chmod +x /opt/sqlmap/sqlmap.py; \
+    sqlmap --version
+
+# --- jwt_tool ----------------------------------------------------------------
+RUN set -eux; \
+    curl -fsSL --retry 3 -o /tmp/jwt.tar.gz "https://github.com/ticarpi/jwt_tool/archive/refs/heads/master.tar.gz"; \
+    tar -xzf /tmp/jwt.tar.gz -C /opt; \
+    mv /opt/jwt_tool-master /opt/jwt_tool; \
+    python3 -m pip install --no-cache-dir -q -r /opt/jwt_tool/requirements.txt; \
+    printf '#!/bin/sh\nexec python3 /opt/jwt_tool/jwt_tool.py "$@"\n' > /usr/local/bin/jwt_tool; \
+    chmod +x /usr/local/bin/jwt_tool; \
+    jwt_tool -h >/dev/null
+
+# Template nuclei di-bake supaya scan pertama tidak menunggu unduhan (~10 ribu template).
+RUN nuclei -update-templates -silent || true
+
+ENV ARTEX_TOOLS_LAYER=1
