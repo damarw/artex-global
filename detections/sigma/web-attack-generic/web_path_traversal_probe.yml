@@ -1,0 +1,33 @@
+title: Path Traversal / LFI Probing in URI or Query
+id: 40a4c75b-5cde-4484-b522-2c7cd59e274a
+status: experimental
+description: |
+    Traversal sequences in the URI or query string. Our own runs hit `/show-picture?path=` style handlers; a traversal attempt is any request carrying `../`, encoded variants, or a well-known target file. Almost no legitimate client sends these.
+references:
+    - https://github.com/jiwoochris/artex-global/blob/main/docs/defense-en.md
+author: damarw (derived from authorized pentest findings)
+date: 2026-11-17
+tags:
+    - attack.discovery
+    - attack.t1005
+logsource:
+    product: webserver
+detection:
+    selection:
+        cs-uri-query|contains:
+            - '../'
+            - '..%2f'
+            - '..%2F'
+            - '%2e%2e%2f'
+            - '%252e%252e%252f'
+            - '..\\'
+            - '/etc/passwd'
+            - 'boot.ini'
+            - 'win.ini'
+            - 'php://filter'
+        # also apply to cs-uri-stem when your web server logs the raw path
+    condition: selection
+falsepositives:
+    - Content-management systems that legitimately carry file paths in query strings.
+    - WAF/proxy self-tests.
+level: high

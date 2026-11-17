@@ -1,0 +1,36 @@
+title: Unthrottled Administrative Login Brute Force
+id: 7c0fa180-d1a4-43fd-a975-ee6df7a3304c
+status: experimental
+description: |
+    Repeated failed logins against an administrative endpoint from one source. Our audits found portals, storage consoles and streaming servers all accepting unlimited attempts. The application should throttle; this rule is the compensating control until it does.
+references:
+    - https://github.com/jiwoochris/artex-global/blob/main/docs/defense-en.md
+author: damarw (derived from authorized pentest findings)
+date: 2026-11-17
+tags:
+    - attack.credential-access
+    - attack.t1110.001
+logsource:
+    product: webserver
+detection:
+    selection:
+        cs-method: POST
+        cs-uri-stem|re: '(?i)/(login|admin/login|auth|signin|session|oauth/token)(/|$)'
+        sc-status:
+            - 401
+            - 403
+            - 422
+    condition: selection
+    correlation:
+        type: event_count
+        rules:
+            - 7c0fa180-d1a4-43fd-a975-ee6df7a3304c
+        group-by:
+            - c-ip
+        timespan: 5m
+        condition:
+            gte: 20
+falsepositives:
+    - Password-manager or SSO retry storms (usually a handful, not dozens).
+    - Load tests against a staging host — exclude staging from the rule scope.
+level: high

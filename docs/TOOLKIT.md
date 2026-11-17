@@ -9,6 +9,8 @@ everything here is additive and can be removed by deleting the listed paths.
 | CVE chaining skill | `skills/cve-chain/SKILL.md` | No CVE database or exploit chain in upstream — this adds the procedure and the queries. |
 | Indonesian report skill | `skills/laporan-id/SKILL.md` | Upstream UI/report languages are en/ko/zh/es/ja. |
 | Pentest tool layer | `docker/Dockerfile.tools`, `docker/tools-compose.yml` | Upstream image has nmap/whois/dig/nc only: no nuclei, sqlmap, ffuf, interactsh, jwt_tool. |
+| SARIF 2.1.0 export | `report/sarif.go`, `server/server.go` | Findings could leave as Markdown/CSV/JSON only; auditors and CI dashboards import SARIF. |
+| Generic web-attack detections | `detections/sigma/web-attack-generic/` | The 9 built-in Sigma rules describe ARTEX's own behaviour, not the attack patterns found in real estates. |
 
 ## Skills
 
@@ -77,10 +79,35 @@ ARTEX_LLM_BASE_URL=http://127.0.0.1:20200/v1
 ARTEX_LLM_MODEL=ocg/deepseek-v4.1-flash
 ```
 
+## SARIF export
+
+`GET /api/exploration/findings/export?format=sarif` (same `scope`/`ids`/filter parameters as the other
+formats) returns a SARIF 2.1.0 log:
+
+- one rule per vulnerability class, id normalised to `artex/<class-slug>` (`SQL Injection` and
+  `sql_injection` collapse to the same rule);
+- severity mapping: `critical|high` → `error`, `medium` → `warning`, `low|unknown` → `note`;
+- results are severity-ordered and carry `properties` with `severity`, `findingId`, `status`,
+  `worker`, `taskId`, `assetIds` and the evidence text (truncated at 4 000 chars — the full
+  evidence stays in the evidence store / `md-zip` export);
+- no `locations` are emitted: a finding references internal asset ids, not URLs, and a fabricated
+  URI would be worse than no location.
+
+Verified with `go test ./report/ -run SARIF` (shape, level mapping, rule de-duplication, ordering)
+and `go build ./... && go vet ./report/ ./server/` on Go 1.26.3.
+
+## Detection rules
+
+`detections/sigma/web-attack-generic/` holds 11 Sigma rules for attack *patterns* rather than tool
+fingerprints: identifier walking, traversal payloads, injection tokens, sensitive-file probing,
+document-generator access without a captcha session, unthrottled admin login, upload-then-HTML
+access, debug-console probing, origin bypass by Host mismatch, OAuth `client_credentials` without a
+secret, and scanner User-Agents. Each rule records the finding it came from and what must be tuned
+before enabling.
+
 ## Not changed
 
-- `agent/`, `server/`, `db/` — untouched; no behaviour change to planner/worker/gate.
-- No SARIF exporter yet. Upstream writes findings to PostgreSQL and its own report format.
-  Strix's `strix/report/sarif.py` is the reference if that gets ported (`findings.sarif` is what
-  auditors can import today from the Strix runs).
+- `agent/`, `db/` — untouched. `server/server.go` gains exactly one `case "sarif"` branch in the
+  existing findings export handler; no other server behaviour changes.
 - No multi-language beyond upstream's en/ko/zh/es/ja; Indonesian output comes from `laporan-id`.
+  The UI stays English for now.

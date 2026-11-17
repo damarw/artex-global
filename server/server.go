@@ -2286,6 +2286,14 @@ func (s *Server) findingsExport(w http.ResponseWriter, r *http.Request) {
 	case "csv":
 		setDownload("text/csv; charset=utf-8", "findings-"+stamp+".csv")
 		_, _ = w.Write(report.FindingsCSV(fs))
+	case "sarif":
+		out, err := report.FindingsSARIF(fs, now)
+		if err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		setDownload("application/sarif+json; charset=utf-8", "findings-"+stamp+".sarif")
+		_, _ = w.Write(out)
 	case "json":
 		assets := s.resolveFindingAssets(fs)
 		out := make([]FindingDTO, 0, len(fs))

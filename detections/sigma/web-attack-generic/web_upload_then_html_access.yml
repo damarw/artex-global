@@ -1,0 +1,37 @@
+title: Upload Followed by Direct Access to Executable Content (Polyglot Upload)
+id: dbc3cbe3-e6d6-4f1e-9859-5522112ca013
+status: experimental
+description: |
+    The stored-XSS/RCE pattern from our PAS PBB finding: the upload handler derives the stored extension from the client-supplied MIME, so an image-header polyglot lands as `.html` and is served inline from the portal origin. Detection: an upload POST followed within minutes by a GET of a file with an active extension under the storage path, from any source.
+references:
+    - https://github.com/jiwoochris/artex-global/blob/main/docs/defense-en.md
+author: damarw (derived from authorized pentest findings)
+date: 2026-11-17
+tags:
+    - attack.persistence
+    - attack.t1505.003
+    - attack.t1027
+logsource:
+    product: webserver
+detection:
+    selection:
+        cs-method: GET
+        cs-uri-stem|re: '(?i)/(storage|uploads?|files?)/.*\.(html?|svg|xhtml|shtml|js|php[0-9]?)$'
+        sc-status: 200
+        # 1) match the upload POST in the same window:
+        #      cs-method: POST, cs-uri-stem|re: '(?i)/(upload|autosave|wizard/autosave|attach)'
+        # 2) ideally scope both to the same c-ip, or to the same storage prefix
+    condition: selection
+    correlation:
+        type: event_count
+        rules:
+            - dbc3cbe3-e6d6-4f1e-9859-5522112ca013
+        group-by:
+            - c-ip
+        timespan: 10m
+        condition:
+            gte: 1
+falsepositives:
+    - Portals that intentionally serve HTML/SVG galleries (verify the path is user content).
+    - CDN or WAF probe requests.
+level: high

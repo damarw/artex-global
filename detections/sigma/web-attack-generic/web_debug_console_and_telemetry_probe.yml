@@ -1,0 +1,22 @@
+title: Debug Console / Telemetry Endpoint Probing (Telescope, Actuator, pprof)
+id: efb75d14-cd34-4c12-8a84-824e58b335e9
+status: experimental
+description: |
+    Requests for developer surfaces that must not exist in production: Laravel Telescope, Spring Actuator, Go pprof, phpinfo, GraphQL playground, debug toolbars. A hit is either an attacker or a misconfigured deployment — both worth an alert.
+references:
+    - https://github.com/jiwoochris/artex-global/blob/main/docs/defense-en.md
+author: damarw (derived from authorized pentest findings)
+date: 2026-11-17
+tags:
+    - attack.discovery
+    - attack.t1595
+    - attack.t1082
+logsource:
+    product: webserver
+detection:
+    selection:
+        cs-uri-stem|re: '(?i)/(telescope|horizon|_profiler|actuator|pprof|debugbar|phpinfo\.php|__debug__|graphiql|playground|server-status)(/|$)'
+    condition: selection
+falsepositives:
+    - Health/ops dashboards reachable from a monitoring network — allowlist that source.
+level: medium

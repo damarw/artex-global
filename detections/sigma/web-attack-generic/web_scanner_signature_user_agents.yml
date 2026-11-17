@@ -1,0 +1,37 @@
+title: Offensive Scanner User-Agent or Default Tool Fingerprint
+id: 4c46d6d8-1fa8-4a06-ac5b-4bd19214e4cd
+status: experimental
+description: |
+    Default User-Agents of the tools that autonomous agents bundle (sqlmap, nuclei, ffuf, nikto, httpx, nmap NSE, gobuster, feroxbuster, wpscan, ZAP, Burp). Cheap to spoof, so a clean result proves nothing — keep it as a low-noise tripwire and rely on behaviour rules for the real signal.
+references:
+    - https://github.com/jiwoochris/artex-global/blob/main/docs/defense-en.md
+author: damarw (derived from authorized pentest findings)
+date: 2026-11-17
+tags:
+    - attack.reconnaissance
+    - attack.t1595
+logsource:
+    product: webserver
+detection:
+    selection:
+        c-useragent|contains:
+            - 'sqlmap'
+            - 'Nuclei'
+            - 'nuclei'
+            - 'ffuf'
+            - 'Nikto'
+            - 'httpx'
+            - 'gobuster'
+            - 'feroxbuster'
+            - 'WPScan'
+            - 'ZmEu'
+            - 'masscan'
+            - 'Nmap Scripting Engine'
+            - 'python-requests/2.'
+            - 'Go-http-client/1.1'
+        # 'python-requests' and 'Go-http-client' also cover legitimate API clients — if they are
+        # noisy in your environment, drop them and keep only the named scanners
+    condition: selection
+falsepositives:
+    - Your own scanners and monitoring. Allowlist their sources; do not disable the rule.
+level: low

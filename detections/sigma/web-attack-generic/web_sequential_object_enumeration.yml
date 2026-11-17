@@ -1,0 +1,34 @@
+title: Sequential Object Identifier Enumeration (IDOR / Register Walking)
+id: 6f184690-8375-42e5-be78-400a622834f9
+status: experimental
+description: |
+    One client walks a numeric identifier space in a single path — the pattern behind property-tax (NOP) walking, invoice/record enumeration and object-level authorization probes. A human browsing a portal spreads requests across many paths and rarely produces consecutive identifiers; a script produces hundreds. Tune the count to your own traffic: 30 distinct identifiers from one source in 5 minutes is already abnormal for a citizen-facing portal.
+references:
+    - https://github.com/jiwoochris/artex-global/blob/main/docs/defense-en.md
+author: damarw (derived from authorized pentest findings)
+date: 2026-11-17
+tags:
+    - attack.discovery
+    - attack.t1087
+    - attack.t1590
+logsource:
+    product: webserver
+detection:
+    selection:
+        cs-method: GET
+        cs-uri-stem|re: '(?i)/(pengumuman|objek-pajak|transaksi|layanan|user|invoice|order|detail|document)s?/\d{2,18}(/|$)'
+        sc-status: 200
+    condition: selection
+    correlation:
+        type: event_count
+        rules:
+            - 6f184690-8375-42e5-be78-400a622834f9
+        group-by:
+            - c-ip
+        timespan: 5m
+        condition:
+            gte: 30
+falsepositives:
+    - A published dataset browsed through stable links (canonical sitemap crawl).
+    - Monitoring or health checks that iterate ids (should be allowlisted by source).
+level: high

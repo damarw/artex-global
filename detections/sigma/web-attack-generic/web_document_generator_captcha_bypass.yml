@@ -1,0 +1,36 @@
+title: Document Generator Hit Without Captcha Session (Captcha Bypass Pattern)
+id: 2eff19c9-6bf4-40be-83a6-39c7c9375f5a
+status: experimental
+description: |
+    The pattern we found in the Wonosobo property-tax portal: the public lookup is captcha protected, but the PDF/JSON endpoints behind it are not. Detection works backwards from the ratio — many report/document requests from one client, few or no captcha validations. One hit is nothing; a ratio is the signal. Also fires when a document endpoint is requested with a session that never touched the captcha route. Adapt the two path lists to your application, then keep the ratio condition.
+references:
+    - https://github.com/jiwoochris/artex-global/blob/main/docs/defense-en.md
+author: damarw (derived from authorized pentest findings)
+date: 2026-11-17
+tags:
+    - attack.collection
+    - attack.t1213
+    - attack.t1530
+logsource:
+    product: webserver
+detection:
+    selection:
+        cs-uri-stem|re: '(?i)(/report/|/print-out|/cetak|/export|/pdf|/document)s?[/.]'
+        sc-status: 200
+        # correlate against the captcha route of your own app, e.g.
+        #   /captcha/math, /info-sppt/search, /api/captcha/verify
+        # and require: document_hits >= 20 AND captcha_hits == 0 within the window
+    condition: selection
+    correlation:
+        type: event_count
+        rules:
+            - 2eff19c9-6bf4-40be-83a6-39c7c9375f5a
+        group-by:
+            - c-ip
+        timespan: 10m
+        condition:
+            gte: 20
+falsepositives:
+    - Public document portals that are intentionally captcha-free (scope them out).
+    - Scheduled generators that render reports server-side.
+level: high

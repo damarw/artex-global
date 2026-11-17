@@ -1,0 +1,32 @@
+title: Origin Bypass Attempt — Public Host Header Reaching Origin Directly
+id: fe077acb-4c17-4f5c-8078-8afb19e61860
+status: experimental
+description: |
+    Traffic that reaches the origin address while carrying the public hostname, i.e. the client skipped the CDN/WAF. On the CCTV estate the origin accepted direct connections with no allowlist, so every edge control was optional. Requires logs that carry both the destination address and the Host header; the CDN ranges must be excluded via a lookup table.
+references:
+    - https://github.com/jiwoochris/artex-global/blob/main/docs/defense-en.md
+author: damarw (derived from authorized pentest findings)
+date: 2026-11-17
+tags:
+    - attack.defense-evasion
+    - attack.t1090
+logsource:
+    product: webserver
+detection:
+    selection:
+        # pseudo-fields — map to your web server's variables:
+        #   cs-host     <- Host header
+        #   r-dst-ip    <- local server address that received the connection
+        #   c-ip        <- client address
+        cs-host|endswith:
+            - '.wonosobokab.go.id'
+        r-dst-ip:
+            - '<origin-ip-1>'
+            - '<origin-ip-2>'
+        # condition: c-ip NOT IN <published CDN ranges>. Without that exclusion every request
+        # will match, because the CDN also connects to the origin.
+    condition: selection
+falsepositives:
+    - CDN egress ranges (must be allowlisted).
+    - Internal uptime monitors that connect to the origin by design.
+level: medium

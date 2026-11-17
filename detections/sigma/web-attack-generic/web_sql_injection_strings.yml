@@ -1,0 +1,39 @@
+title: SQL Injection / NoSQL Injection Payload Strings in Request
+id: 47756a68-66d3-4aa9-88ca-8f0563ae3138
+status: experimental
+description: |
+    Classic injection tokens in the raw request line. This is a *symptom* rule: it fires on the payload, not on success. Pair it with the application's own error rate — a payload plus a 500 or a DB error signature is far stronger than either alone.
+references:
+    - https://github.com/jiwoochris/artex-global/blob/main/docs/defense-en.md
+author: damarw (derived from authorized pentest findings)
+date: 2026-11-17
+tags:
+    - attack.initial-access
+    - attack.t1190
+logsource:
+    product: webserver
+detection:
+    selection:
+        cs-uri-query|contains:
+            - 'union select'
+            - 'union all select'
+            - 'information_schema'
+            - 'sleep('
+            - 'benchmark('
+            - 'pg_sleep'
+            - 'waitfor delay'
+            - 'extractvalue('
+            - 'updatexml('
+            - "concat(0x"
+            - "' or '1'='1"
+            - "' or 1=1--"
+            - '$ne'
+            - '$gt'
+            - '$where'
+        # case: the values above are matched case-insensitively when your pipeline lowercases
+        # the query; otherwise duplicate the list in upper case for UNION SELECT / SLEEP( forms
+    condition: selection
+falsepositives:
+    - Search boxes that forward the raw term into logs (query echo).
+    - Security scanners you run yourself — allowlist their source addresses.
+level: high

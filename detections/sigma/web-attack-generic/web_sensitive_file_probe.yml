@@ -1,0 +1,22 @@
+title: Sensitive File / Backup / Repository Metadata Probe
+id: a79c189b-c915-40e3-a0be-ed376c2fafca
+status: experimental
+description: |
+    Requests for files that should never be served: `.env`, `.git/`, backup extensions, database dumps, source maps of server-side code. A single hit means someone is mapping your deployment; a 200 means something is misconfigured.
+references:
+    - https://github.com/jiwoochris/artex-global/blob/main/docs/defense-en.md
+author: damarw (derived from authorized pentest findings)
+date: 2026-11-17
+tags:
+    - attack.discovery
+    - attack.t1083
+    - attack.t1552.001
+logsource:
+    product: webserver
+detection:
+    selection:
+        cs-uri-stem|re: '(?i)(/\.env|/\.git/|/\.svn/|/\.aws/|/\.ssh/|wp-config\.php|/config\.(php|json|ya?ml)$|/backup|/\.DS_Store|/(dump|backup|db)\.[a-z0-9]{2,4}$|\.(bak|old|orig|swp|sql|tar\.gz|zip)$)'
+    condition: selection
+falsepositives:
+    - Legitimate download endpoints that serve archives by name (scope by path prefix).
+level: medium
